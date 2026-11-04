@@ -1,46 +1,24 @@
-plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-}
+package com.aidlss.mobile
 
-android {
-    namespace = "com.aidlss.mobile"
-    compileSdk = 35
+import android.app.Activity
+import android.os.Bundle
+import android.graphics.Color
+import android.view.Gravity
+import android.widget.TextView
 
-    defaultConfig {
-        applicationId = "com.aidlss.mobile"
-        minSdk = 26
-        targetSdk = 35
-        versionCode = 2
-        versionName = "2.0"
+class MainActivity : Activity() {
 
-        ndk {
-            abiFilters += "arm64-v8a"
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val screen = TextView(this).apply {
+            text = "AI DLSS MOBILE\n\nAPP RUNNING"
+            textSize = 25f
+            setTextColor(Color.CYAN)
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.rgb(15, 18, 28))
         }
-    }
 
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-        }
+        setContentView(screen)
     }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
-}
-
-dependencies {
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 }
