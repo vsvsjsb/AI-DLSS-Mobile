@@ -1,8 +1,8 @@
 package com.aidlss.mobile
 
 /**
- * Static compatibility metadata for the Feral Interactive Android release.
- * This profile is diagnostic metadata only; it does not hook or process game frames.
+ * Compatibility metadata for the supplied Feral Interactive Android APK.
+ * Diagnostic only: these fields do not force a game's renderer or process frames.
  */
 object GameProfiles {
     const val TOMB_RAIDER_PACKAGE = "com.feralinteractive.tombraider_android"
@@ -13,9 +13,12 @@ object GameProfiles {
         val id: String,
         val displayName: String,
         val packageName: String,
+        val expectedVersion: String,
         val expectedAbi: String,
         val graphicsApis: List<String>,
+        val preferredApi: String,
         val primaryLibrary: String,
+        val upscaleRatios: List<Float>,
         val notes: List<String>
     )
 
@@ -23,15 +26,19 @@ object GameProfiles {
         id = "tomb_raider_2013_feral",
         displayName = "Tomb Raider (2013) – Feral Interactive",
         packageName = TOMB_RAIDER_PACKAGE,
+        expectedVersion = TOMB_RAIDER_VERSION,
         expectedAbi = TOMB_RAIDER_ABI,
         graphicsApis = listOf("Vulkan", "OpenGL ES / EGL"),
+        preferredApi = "Vulkan",
         primaryLibrary = "libTombRaider.so",
+        upscaleRatios = listOf(1.25f, 1.5f, 2.0f),
         notes = listOf(
-            "Static APK analysis found Vulkan entry-point markers and libvulkan.so in libTombRaider.so.",
+            "Static APK inspection found Vulkan entry-point markers and libvulkan.so in libTombRaider.so.",
             "OpenGL ES / EGL dependencies are also present in libTombRaider.so.",
-            "APK symbols do not prove which graphics API is active during gameplay.",
-            "Unity and Unreal asset layouts were not detected in the supplied analysis.",
-            "Runtime frame processing and graphics interception are not implemented."
+            "Vulkan is the requested preferred path; APK markers do not prove the active runtime renderer.",
+            "The supplied analysis found five native libraries; libTombRaider.so is the main graphics library.",
+            "Foundation Engine is user-reported and is not independently verified by this APK scan.",
+            "Upscale ratios are test-profile targets only; no in-game frame scaling is implemented yet."
         )
     )
 
@@ -49,15 +56,17 @@ object GameProfiles {
     fun report(packageName: String): String {
         val profile = forPackage(packageName) ?: return "لا يوجد ملف تعريف معروف لهذه الحزمة."
         return buildString {
-            appendLine("ملف التعريف: ${profile.displayName}")
-            appendLine("المعرّف: ${profile.id}")
-            appendLine("الحزمة المطابقة: ${profile.packageName}")
-            appendLine("الإصدار المرجعي: ${TOMB_RAIDER_VERSION}")
-            appendLine("المعمارية المتوقعة: ${profile.expectedAbi}")
-            appendLine("واجهات الرسوميات ذات المؤشرات: ${profile.graphicsApis.joinToString()}")
-            appendLine("المكتبة الرئيسية: ${profile.primaryLibrary}")
-            appendLine("الحالة: ملف تعريف وتشخيص APK فقط؛ لا يوجد اعتراض لإطارات اللعبة بعد.")
-            profile.notes.forEach { appendLine("• $it") }
+            appendLine("ملف التعريف: " + profile.displayName)
+            appendLine("المعرّف: " + profile.id)
+            appendLine("الحزمة: " + profile.packageName)
+            appendLine("الإصدار المرجعي: " + profile.expectedVersion)
+            appendLine("المعمارية المتوقعة: " + profile.expectedAbi)
+            appendLine("واجهات الرسوميات ذات المؤشرات: " + profile.graphicsApis.joinToString())
+            appendLine("المسار المفضل للتجربة: " + profile.preferredApi)
+            appendLine("المكتبة الرئيسية: " + profile.primaryLibrary)
+            appendLine("نسب الرفع المقترحة: " + profile.upscaleRatios.joinToString() + "x")
+            appendLine("الحالة: ملف تعريف تشخيصي؛ لم يتم اعتراض إطارات اللعبة.")
+            profile.notes.forEach { appendLine("• " + it) }
         }
     }
 }
