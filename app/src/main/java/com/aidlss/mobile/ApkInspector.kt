@@ -12,8 +12,11 @@ data class ApkInspection(
 )
 
 object ApkInspector {
-    fun inspect(apk: File): ApkInspection = ZipFile(apk).use { zip ->
-        val entries = zip.entries().asSequence().map { it.name }.toList()
+    fun inspect(apks: List<File>): ApkInspection {
+        val entries = apks.filter { it.isFile }.flatMap { apk ->
+            try { ZipFile(apk).use { zip -> zip.entries().asSequence().map { it.name }.toList() } }
+            catch (_: Exception) { emptyList() }
+        }
         val engine = when {
             entries.any { it.endsWith("/libunity.so") } -> "Unity"
             entries.any { it.endsWith("/libUE4.so") || it.endsWith("/libUnreal.so") } -> "Unreal Engine"
@@ -25,7 +28,7 @@ object ApkInspector {
             .filter { it.startsWith("lib/") && it.endsWith(".so") }
             .mapNotNull { it.split("/").getOrNull(1) }
             .distinct().sorted().toList()
-        ApkInspection(
+        return ApkInspection(
             engine = engine,
             abis = abis,
             nativeLibraries = entries.count { it.startsWith("lib/") && it.endsWith(".so") },
@@ -33,4 +36,6 @@ object ApkInspector {
             hasUnrealAssets = entries.any { it.startsWith("assets/") && it.endsWith(".pak") }
         )
     }
+
+    fun inspect(apk: File): ApkInspection = inspect(listOf(apk))
 }
