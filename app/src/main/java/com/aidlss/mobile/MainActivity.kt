@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import java.io.File
@@ -20,12 +21,22 @@ class MainActivity : ComponentActivity() {
     private var selectedPackage: String? = null
     private var selectedScale = 1.5f
     private var selectedBackend = "Vulkan (المفضل)"
+    private var sharpness = 35
+    private var contrast = 100
+    private var shadows = 15
+    private var saturation = 100
+    private var brightness = 100
     private val prefs by lazy { getSharedPreferences("dlss_test_profile", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         selectedScale = prefs.getFloat("scale", 1.5f)
         selectedBackend = prefs.getString("backend", "Vulkan (المفضل)") ?: "Vulkan (المفضل)"
+        sharpness = prefs.getInt("sharpness", 35)
+        contrast = prefs.getInt("contrast", 100)
+        shadows = prefs.getInt("shadows", 15)
+        saturation = prefs.getInt("saturation", 100)
+        brightness = prefs.getInt("brightness", 100)
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -58,22 +69,41 @@ class MainActivity : ComponentActivity() {
             status.text = "تم حفظ إعداد التجربة محلياً."
             updateProfileStatus()
         })
+
+        page.addView(section("3) تحسين الصورة"))
+        page.addView(text("اضبط التأثيرات واحفظها كملف معالجة جاهز. القيم لا تؤثر على اللعبة حتى ربط مسار الإطارات.", 12f, Color.rgb(255, 195, 110), false))
+        page.addView(effectSeekBar("الحدة", sharpness, 0, 100, "%") { sharpness = it })
+        page.addView(effectSeekBar("التباين", contrast, 50, 150, "%") { contrast = it })
+        page.addView(effectSeekBar("رفع الظلال", shadows, -50, 50, "") { shadows = it })
+        page.addView(effectSeekBar("التشبع اللوني", saturation, 0, 200, "%") { saturation = it })
+        page.addView(effectSeekBar("الإضاءة", brightness, 50, 150, "%") { brightness = it })
+        page.addView(button("حفظ إعدادات تحسين الصورة") {
+            prefs.edit()
+                .putInt("sharpness", sharpness)
+                .putInt("contrast", contrast)
+                .putInt("shadows", shadows)
+                .putInt("saturation", saturation)
+                .putInt("brightness", brightness)
+                .apply()
+            status.text = "تم حفظ الحدة والتباين والظلال وباقي التأثيرات."
+            updateProfileStatus()
+        })
         profileStatus = text("", 13f, Color.rgb(0, 220, 255), false)
         page.addView(profileStatus)
         updateProfileStatus()
 
-        page.addView(section("3) فحص الجهاز وVulkan"))
+        page.addView(section("4) فحص الجهاز وVulkan"))
         page.addView(button("فحص دعم Vulkan ودقة الشاشة") { details.text = deviceReport() })
         details = text(deviceReport(), 12f, Color.WHITE, false).apply { gravity = Gravity.START }
         page.addView(details)
 
-        page.addView(section("4) فحص اللعبة"))
+        page.addView(section("5) فحص اللعبة"))
         page.addView(button("اختيار Tomb Raider أو مشغّلها وفحص APK") { showInstalledApps() })
         page.addView(button("تشغيل التطبيق المحدد") { launchSelectedApp() })
         status = text("لم يتم فحص اللعبة بعد. اختر اللعبة أو مشغّلها المثبت.", 13f, Color.rgb(0, 220, 255), false)
         page.addView(status)
 
-        page.addView(section("5) حدود التجربة – اقرأها"))
+        page.addView(section("6) حدود التجربة – اقرأها"))
         page.addView(text(
             "هذا الإصدار يحفظ إعدادات نسبة رفع الدقة ويكشف دعم Vulkan على الهاتف ويحلل مكتبات اللعبة. لا يفرض Vulkan على اللعبة ولا يغيّر دقتها الفعلية ولا يعترض إطاراتها حتى الآن. رفع الدقة المعروض هنا إعداد اختبار فقط؛ لن يظهر تحسن داخل اللعبة قبل تنفيذ مسار التقاط/معالجة/عرض الإطارات أو ربط Vulkan داخل اللعبة.",
             12f, Color.rgb(255, 195, 110), false
@@ -90,6 +120,31 @@ class MainActivity : ComponentActivity() {
             "\nنسبة الرفع: " + selectedScale + "x" +
             "\nهدف المعالجة النظري: " + w + " × " + h +
             "\nالحالة: إعداد محفوظ عند الضغط على زر الحفظ."
+    }
+
+
+    private fun effectSeekBar(label: String, initial: Int, min: Int, max: Int, suffix: String, changed: (Int) -> Unit): LinearLayout {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(5), 0, dp(5))
+        }
+        val valueText = text("$label: $initial$suffix", 13f, Color.WHITE, false).apply { gravity = Gravity.START }
+        val seek = SeekBar(this).apply {
+            this.max = max - min
+            progress = (initial - min).coerceIn(0, this.max)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    val value = progress + min
+                    valueText.text = "$label: $value$suffix"
+                    changed(value)
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) {}
+                override fun onStopTrackingTouch(bar: SeekBar?) {}
+            })
+        }
+        row.addView(valueText)
+        row.addView(seek)
+        return row
     }
 
     private fun scaleLabel(scale: Float) = when (scale) {
@@ -179,6 +234,14 @@ class MainActivity : ComponentActivity() {
                             appendLine("=== إعداد رفع الدقة المختار (غير مطبق داخل اللعبة) ===")
                             appendLine("المحرك المطلوب: " + selectedBackend)
                             appendLine("نسبة الرفع: " + selectedScale + "x")
+                            appendLine()
+                            appendLine("=== إعدادات تحسين الصورة المحفوظة ===")
+                            appendLine("الحدة: " + sharpness + "%")
+                            appendLine("التباين: " + contrast + "%")
+                            appendLine("رفع الظلال: " + shadows)
+                            appendLine("التشبع اللوني: " + saturation + "%")
+                            appendLine("الإضاءة: " + brightness + "%")
+                            appendLine("الحالة: إعدادات معالجة محفوظة؛ لا تُطبّق على إطارات اللعبة قبل ربط مسار الالتقاط والمعالجة.")
                         }
                         runOnUiThread {
                             details.text = report
