@@ -1,0 +1,82 @@
+#version 450
+
+// Adreno Temporal Reconstruction - Vulkan compute shader.
+// This is an original implementation inspired by temporal upscaling principles;
+// it is NOT NVIDIA DLSS and does not use NVIDIA binaries or Tensor Cores.
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform sampler2D uCurrentColor;
+layout(set = 0, binding = 1) uniform sampler2D uMotionVectors;
+layout(set = 0, binding = 2) uniform sampler2D uLinearDepth;
+layout(set = 0, binding = 3) uniform sampler2D uHistoryColor;
+layout(set = 0, binding = 4, rgba16f) uniform writeonly image2D uOutput;
+
+layout(push_constant) uniform Params {
+    ivec2 outputSize;
+    ivec2 inputSize;
+    vec2 jitterUV;
+    float historyWeight;
+    float sharpness;
+    uint historyValid;
+} pc;
+
+vec3 sampleCurrent(vec2 uv) {
+    return texture(uCurrentColor, clamp(uv, vec2(0.0), vec2(1.0))).rgb;
+}
+
+void main() {
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (pixel.x >= pc.outputSize.x || pixel.y >= pc.outputSize.y) return;
+
+    vec2 outUV = (vec2(pixel) + 0.5) / vec2(pc.outputSize);
+    vec2 currentUV = outUV + pc.jitterUV;
+
+    // Current frame reconstruction. Hardware texture filtering performs
+    // bilinear sampling; temporal history supplies sub-pixel stability.
+    vec3 current = sampleCurrent(currentUV);
+
+    // Estimate a local color envelope to reject history ghosting.
+    vec2 inputTexel = 1.0 / vec2(pc.inputSize);
+    vec3 lo = vec3(1e20);
+    vec3 hi = vec3(-1e20);
+    for (int y = -1; y <= 1; ++y) {
+        for (int x = -1; x <= 1; ++x) {
+            vec3 c = sampleCurrent(currentUV + vec2(x, y) * inputTexel);
+            lo = min(lo, c);
+            hi = max(hi, c);
+        }
+    }
+
+    vec3 reconstructed = current;
+    if (pc.historyValid != 0u) {
+        // Motion vectors are expected in normalized UV units, current-to-previous.
+        vec2 velocity = texture(uMotionVectors, outUV).xy;
+        vec2 previousUV = outUV - velocity;
+        float depth = texture(uLinearDepth, outUV).r;
+        float previousDepth = texture(uLinearDepth, previousUV).r;
+        float depthAgreement = 1.0 - smoothstep(0.002, 0.03, abs(depth - previousDepth));
+
+        vec3 history = texture(uHistoryColor, previousUV).rgb;
+        history = clamp(history, lo, hi);
+
+        float inside = float(
+            previousUV.x >= 0.0 && previousUV.x <= 1.0 &&
+            previousUV.y >= 0.0 && previousUV.y <= 1.0
+        );
+        float weight = clamp(pc.historyWeight, 0.0, 0.95) *
+                       depthAgreement * inside;
+        reconstructed = mix(current, history, weight);
+    }
+
+    // Conservative detail recovery. Keep this modest to avoid ringing.
+    vec3 neighborhood = (
+        sampleCurrent(currentUV + vec2(inputTexel.x, 0.0)) +
+        sampleCurrent(currentUV - vec2(inputTexel.x, 0.0)) +
+        sampleCurrent(currentUV + vec2(0.0, inputTexel.y)) +
+        sampleCurrent(currentUV - vec2(0.0, inputTexel.y))
+    ) * 0.25;
+    reconstructed += (current - neighborhood) * clamp(pc.sharpness, 0.0, 0.35);
+
+    imageStore(uOutput, pixel, vec4(clamp(reconstructed, 0.0, 1.0), 1.0));
+}
