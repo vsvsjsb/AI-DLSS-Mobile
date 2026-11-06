@@ -94,7 +94,7 @@ class MainActivity : ComponentActivity() {
                             appendLine("تحليل كل مكتبة أصلية (رموز + اعتماديات ELF):")
                             result.libraryAnalyses.forEach { lib ->
                                 appendLine("[" + lib.name + "]")
-                                appendLine("الحجم: " + if (lib.sizeBytes >= 0) (lib.sizeBytes / 1024) + " KB" else "غير معروف")
+                                appendLine("الحجم: " + (if (lib.sizeBytes >= 0) "${lib.sizeBytes / 1024} KB" else "غير معروف"))
                                 appendLine("ELF64: " + if (lib.elf64) "نعم" else "لا/غير معروف")
                                 appendLine("Vulkan: " + lib.vulkanMarkers.joinToString().ifBlank { "لا توجد مؤشرات معروفة" })
                                 appendLine("OpenGL ES/EGL: " + lib.openGlMarkers.joinToString().ifBlank { "لا توجد مؤشرات معروفة" })
