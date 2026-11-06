@@ -11,43 +11,108 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import java.io.File
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     private lateinit var status: TextView
     private lateinit var details: TextView
+    private lateinit var profileStatus: TextView
     private var selectedPackage: String? = null
+    private var selectedScale = 1.5f
+    private var selectedBackend = "Vulkan (المفضل)"
+    private val prefs by lazy { getSharedPreferences("dlss_test_profile", MODE_PRIVATE) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        selectedScale = prefs.getFloat("scale", 1.5f)
+        selectedBackend = prefs.getString("backend", "Vulkan (المفضل)") ?: "Vulkan (المفضل)"
+
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), dp(24), dp(18), dp(30))
             setBackgroundColor(Color.rgb(12, 16, 27))
         }
         val scroll = ScrollView(this).apply { addView(page) }
-        page.addView(text("DLSS5 MOBILE", 28f, Color.rgb(0, 220, 255), true))
-        page.addView(text("TOMB RAIDER 2013 • ANDROID", 16f, Color.WHITE, true))
-        page.addView(text("نسخة التطوير الأولى مخصصة للعبة Tomb Raider فقط", 13f, Color.LTGRAY, false))
-        page.addView(section("فحص اللعبة"))
+        page.addView(text("AI DLSS MOBILE • VULKAN TEST", 23f, Color.rgb(0, 220, 255), true))
+        page.addView(text("ملف تجربة رفع الدقة – Adreno / Android", 15f, Color.WHITE, true))
+        page.addView(text("إعدادات اختبار محفوظة + فحص دعم Vulkan ومعلومات اللعبة", 12f, Color.LTGRAY, false))
+
+        page.addView(section("1) محرك الرسوميات"))
+        page.addView(button("Vulkan (المفضل)") {
+            selectedBackend = "Vulkan (المفضل)"
+            updateProfileStatus()
+        })
+        page.addView(button("OpenGL ES (احتياطي)") {
+            selectedBackend = "OpenGL ES (احتياطي)"
+            updateProfileStatus()
+        })
+        page.addView(section("2) مستوى رفع الدقة"))
+        listOf(1.25f, 1.5f, 2.0f).forEach { scale ->
+            page.addView(button(scale.toString() + "x • " + scaleLabel(scale)) {
+                selectedScale = scale
+                updateProfileStatus()
+            })
+        }
+        page.addView(button("حفظ إعداد التجربة") {
+            prefs.edit().putFloat("scale", selectedScale).putString("backend", selectedBackend).apply()
+            status.text = "تم حفظ إعداد التجربة محلياً."
+            updateProfileStatus()
+        })
+        profileStatus = text("", 13f, Color.rgb(0, 220, 255), false)
+        page.addView(profileStatus)
+        updateProfileStatus()
+
+        page.addView(section("3) فحص الجهاز وVulkan"))
+        page.addView(button("فحص دعم Vulkan ودقة الشاشة") { details.text = deviceReport() })
+        details = text(deviceReport(), 12f, Color.WHITE, false).apply { gravity = Gravity.START }
+        page.addView(details)
+
+        page.addView(section("4) فحص اللعبة"))
         page.addView(button("اختيار Tomb Raider أو مشغّلها وفحص APK") { showInstalledApps() })
         page.addView(button("تشغيل التطبيق المحدد") { launchSelectedApp() })
-        status = text("لم يتم فحص اللعبة بعد. اختر تطبيق اللعبة أو مشغّلها المثبت.", 14f, Color.rgb(0, 220, 255), false)
+        status = text("لم يتم فحص اللعبة بعد. اختر اللعبة أو مشغّلها المثبت.", 13f, Color.rgb(0, 220, 255), false)
         page.addView(status)
-        page.addView(section("نتيجة التحليل"))
-        details = text("ستظهر هنا معلومات الحزمة، المحرك، المكتبات الأصلية وأسماء ملفات الأصول.", 13f, Color.WHITE, false)
-        details.gravity = Gravity.START
-        page.addView(details)
-        page.addView(section("هدف هذا الإصدار"))
+
+        page.addView(section("5) حدود التجربة – اقرأها"))
         page.addView(text(
-            "1) تحديد نسخة Tomb Raider المثبتة.\n2) فحص APK الأساسي وملفات Split APK دون طلب Android/data أو OBB.\n3) استخراج أسماء المكتبات الأصلية وبصمات ملفات الأصول.\n4) استخدام النتائج لتحديد طريقة الربط الرسومي المناسبة للعبة.",
-            13f, Color.LTGRAY, false
-        ))
-        page.addView(section("ملاحظة تقنية"))
-        page.addView(text(
-            "يفحص هذا الإصدار كل مكتبة أصلية على حدة حتى 64 MB، ويعرض مؤشرات Vulkan وOpenGL ES واعتماديات ELF من DT_NEEDED. وجود رمز أو اعتماد لا يثبت وحده أن اللعبة تستخدم واجهة الرسم أثناء اللعب؛ يلزم رصد وقت التشغيل لإثبات المسار النشط. هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد.",
+            "هذا الإصدار يحفظ إعدادات نسبة رفع الدقة ويكشف دعم Vulkan على الهاتف ويحلل مكتبات اللعبة. لا يفرض Vulkan على اللعبة ولا يغيّر دقتها الفعلية ولا يعترض إطاراتها حتى الآن. رفع الدقة المعروض هنا إعداد اختبار فقط؛ لن يظهر تحسن داخل اللعبة قبل تنفيذ مسار التقاط/معالجة/عرض الإطارات أو ربط Vulkan داخل اللعبة.",
             12f, Color.rgb(255, 195, 110), false
         ))
         setContentView(scroll)
+    }
+
+    private fun updateProfileStatus() {
+        if (!::profileStatus.isInitialized) return
+        val dm = resources.displayMetrics
+        val w = (dm.widthPixels * selectedScale).roundToInt()
+        val h = (dm.heightPixels * selectedScale).roundToInt()
+        profileStatus.text = "المحرك المحدد: " + selectedBackend +
+            "\nنسبة الرفع: " + selectedScale + "x" +
+            "\nهدف المعالجة النظري: " + w + " × " + h +
+            "\nالحالة: إعداد محفوظ عند الضغط على زر الحفظ."
+    }
+
+    private fun scaleLabel(scale: Float) = when (scale) {
+        1.25f -> "رفع خفيف"
+        1.5f -> "رفع متوسط"
+        else -> "رفع قوي"
+    }
+
+    private fun deviceReport(): String {
+        val features = packageManager.systemAvailableFeatures
+        val vkLevel = features.firstOrNull { it.name == "android.hardware.vulkan.level" }?.version
+        val vkVersion = features.firstOrNull { it.name == "android.hardware.vulkan.version" }?.version
+        val dm = resources.displayMetrics
+        return buildString {
+            appendLine("الجهاز: " + android.os.Build.MANUFACTURER + " " + android.os.Build.MODEL)
+            appendLine("Android: " + android.os.Build.VERSION.RELEASE + " (API " + android.os.Build.VERSION.SDK_INT + ")")
+            appendLine("دقة الشاشة المنطقية: " + dm.widthPixels + " × " + dm.heightPixels)
+            appendLine("كثافة الشاشة: " + dm.densityDpi + " dpi")
+            appendLine("Vulkan hardware level: " + (vkLevel ?: "غير معلن من النظام"))
+            appendLine("Vulkan version feature: " + (vkVersion ?: "غير معلن من النظام"))
+            appendLine("Vulkan في الجهاز: " + if (vkVersion != null) "ميزة Vulkan معلنة" else "لم يتم تأكيدها عبر ميزات Android")
+            appendLine("ملاحظة: إعلان الميزة لا يثبت أن اللعبة تستخدم Vulkan أثناء التشغيل.")
+        }
     }
 
     private fun showInstalledApps() {
@@ -88,33 +153,36 @@ class MainActivity : ComponentActivity() {
                             appendLine("عدد المكتبات الأصلية: " + result.nativeLibraries)
                             appendLine("أسماء المكتبات الأصلية:")
                             result.nativeLibraryNames.forEach { appendLine(" • " + it) }
-                            appendLine("مؤشرات الرسوميات من أسماء الملفات: " + result.graphicsLibraries.joinToString().ifBlank { "غير محسومة" })
-                            appendLine("الرموز المجمعة داخل المكتبات: " + result.nativeGraphicsHints.joinToString().ifBlank { "لا توجد" })
+                            appendLine("مؤشرات الرسوميات: " + result.graphicsLibraries.joinToString().ifBlank { "غير محسومة" })
+                            appendLine("الرموز المجمعة: " + result.nativeGraphicsHints.joinToString().ifBlank { "لا توجد" })
                             appendLine()
-                            appendLine("تحليل كل مكتبة أصلية (رموز + اعتماديات ELF):")
+                            appendLine("تحليل المكتبات الأصلية:")
                             result.libraryAnalyses.forEach { lib ->
                                 appendLine("[" + lib.name + "]")
-                                appendLine("الحجم: " + (if (lib.sizeBytes >= 0) "${lib.sizeBytes / 1024} KB" else "غير معروف"))
+                                appendLine("الحجم: " + if (lib.sizeBytes >= 0) (lib.sizeBytes / 1024).toString() + " KB" else "غير معروف")
                                 appendLine("ELF64: " + if (lib.elf64) "نعم" else "لا/غير معروف")
-                                appendLine("Vulkan: " + lib.vulkanMarkers.joinToString().ifBlank { "لا توجد مؤشرات معروفة" })
-                                appendLine("OpenGL ES/EGL: " + lib.openGlMarkers.joinToString().ifBlank { "لا توجد مؤشرات معروفة" })
-                                appendLine("DT_NEEDED: " + lib.dependencies.joinToString().ifBlank { "غير مقروءة أو غير موجودة" })
+                                appendLine("Vulkan: " + lib.vulkanMarkers.joinToString().ifBlank { "لا توجد مؤشرات" })
+                                appendLine("OpenGL ES/EGL: " + lib.openGlMarkers.joinToString().ifBlank { "لا توجد مؤشرات" })
+                                appendLine("DT_NEEDED: " + lib.dependencies.joinToString().ifBlank { "غير مقروءة" })
                                 appendLine()
                             }
-                            appendLine("عدد ملفات assets الفريدة: " + result.assetCount)
-                            appendLine("ملفات Unity: " + if (result.hasUnityAssets) "موجودة" else "غير مكتشفة")
-                            appendLine("ملفات Unreal PAK: " + if (result.hasUnrealAssets) "موجودة" else "غير مكتشفة")
-                            appendLine("عينات من ملفات الأصول:")
+                            appendLine("عدد ملفات assets: " + result.assetCount)
+                            appendLine("Unity: " + if (result.hasUnityAssets) "موجود" else "غير مكتشف")
+                            appendLine("Unreal PAK: " + if (result.hasUnrealAssets) "موجود" else "غير مكتشف")
                             result.assetSamples.forEach { appendLine(" • " + it) }
                             appendLine()
-                            append(if (isTombRaider) "التعرف على اللعبة: الاسم يطابق Tomb Raider." else "التعرف على اللعبة: الاسم لا يؤكد أنها Tomb Raider؛ تحقق من التطبيق المحدد.")
+                            appendLine(if (isTombRaider) "التعرف على اللعبة: Tomb Raider." else "الاسم لا يؤكد أنها Tomb Raider.")
                             appendLine()
                             appendLine("=== ملف تعريف التوافق ===")
                             append(GameProfiles.report(app.packageName))
+                            appendLine()
+                            appendLine("=== إعداد رفع الدقة المختار (غير مطبق داخل اللعبة) ===")
+                            appendLine("المحرك المطلوب: " + selectedBackend)
+                            appendLine("نسبة الرفع: " + selectedScale + "x")
                         }
                         runOnUiThread {
                             details.text = report
-                            status.text = if (isTombRaider) "اكتمل فحص Tomb Raider بنجاح." else "اكتمل فحص التطبيق المحدد. تحقق من أنه مشغّل Tomb Raider."
+                            status.text = if (isTombRaider) "اكتمل فحص Tomb Raider بنجاح." else "اكتمل فحص التطبيق المحدد."
                         }
                     } catch (e: Exception) {
                         runOnUiThread { status.text = "تعذر فحص التطبيق: " + (e.message ?: "خطأ غير معروف") }
@@ -139,7 +207,7 @@ class MainActivity : ComponentActivity() {
         startActivity(launchIntent)
     }
 
-    private fun section(value: String) = text(value, 18f, Color.rgb(0, 220, 255), true).apply {
+    private fun section(value: String) = text(value, 17f, Color.rgb(0, 220, 255), true).apply {
         gravity = Gravity.START
         setPadding(0, dp(22), 0, dp(8))
     }
