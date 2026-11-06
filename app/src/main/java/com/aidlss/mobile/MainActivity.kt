@@ -108,6 +108,9 @@ class MainActivity : ComponentActivity() {
                             result.assetSamples.forEach { appendLine(" • " + it) }
                             appendLine()
                             append(if (isTombRaider) "التعرف على اللعبة: الاسم يطابق Tomb Raider." else "التعرف على اللعبة: الاسم لا يؤكد أنها Tomb Raider؛ تحقق من التطبيق المحدد.")
+                            appendLine()
+                            appendLine("=== ملف تعريف التوافق ===")
+                            append(GameProfiles.report(app.packageName))
                         }
                         runOnUiThread {
                             details.text = report
