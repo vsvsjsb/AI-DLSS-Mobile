@@ -11,8 +11,8 @@ android {
         applicationId = "com.aidlss.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "5.0"
+        versionCode = 6
+        versionName = "5.1"
 
         ndk {
             abiFilters += "arm64-v8a"
