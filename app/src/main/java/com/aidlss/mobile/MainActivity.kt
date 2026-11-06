@@ -8,6 +8,8 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.net.Uri
+import android.content.Intent
+import androidx.documentfile.provider.DocumentFile
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
@@ -25,6 +27,7 @@ class MainActivity : Activity() {
     private lateinit var sharpnessLabel: TextView
     private lateinit var contrastLabel: TextView
     private lateinit var colorLabel: TextView
+    private lateinit var gameScanStatus: TextView
     private var originalBitmap: Bitmap? = null
     private var sharpness = 20
     private var contrast = 50
@@ -32,6 +35,12 @@ class MainActivity : Activity() {
 
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) loadImage(uri)
+    }
+    private val gameFolderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
+        if (uri != null) {
+            try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
+            scanGameFolder(uri)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,6 +55,14 @@ class MainActivity : Activity() {
 
         page.addView(text("AI DLSS MOBILE", 28f, Color.rgb(0, 220, 255), true))
         page.addView(text("Image enhancement lab • Adreno 730", 14f, Color.LTGRAY, false))
+        page.addView(text("Universal game & emulator scanner", 17f, Color.WHITE, true))
+        val scanButton = Button(this).apply {
+            text = "Select game / emulator folder"
+            setOnClickListener { gameFolderPicker.launch(null) }
+        }
+        page.addView(scanButton, matchWrap())
+        gameScanStatus = text("Select a game folder to identify its files and possible engine.", 13f, Color.rgb(0, 220, 255), false)
+        page.addView(gameScanStatus)
 
         val device = text("DEVICE  |  OnePlus 10T\nGPU  |  Qualcomm Adreno 730\nENGINE  |  On-device bitmap processing", 14f, Color.WHITE, false)
         device.setPadding(0, dp(22), 0, dp(18))
@@ -90,6 +107,60 @@ class MainActivity : Activity() {
         page.addView(text("This version processes a selected image inside the app. It does not modify live game graphics or inject into games.", 12f, Color.LTGRAY, false))
 
         setContentView(scroll)
+    }
+
+    private fun scanGameFolder(uri: Uri) {
+        gameScanStatus.text = "Scanning folder…"
+        Thread {
+            try {
+                val root = DocumentFile.fromTreeUri(this, uri)
+                if (root == null) throw IllegalStateException("Folder cannot be opened")
+                val queue = ArrayDeque<Pair<DocumentFile, Int>>()
+                queue.add(root to 0)
+                val extensions = linkedSetOf<String>()
+                val names = mutableListOf<String>()
+                val indicators = linkedSetOf<String>()
+                var files = 0
+                var folders = 0
+                while (queue.isNotEmpty() && files + folders < 2500) {
+                    val (dir, depth) = queue.removeFirst()
+                    if (depth > 6) continue
+                    val children = try { dir.listFiles() } catch (_: Exception) { emptyArray() }
+                    for (child in children) {
+                        val name = child.name ?: continue
+                        if (child.isDirectory) {
+                            folders++
+                            if (depth < 6) queue.add(child to depth + 1)
+                        } else {
+                            files++
+                            val lower = name.lowercase()
+                            val ext = lower.substringAfterLast('.', "")
+                            if (ext.isNotBlank()) extensions.add(ext)
+                            if (names.size < 80) names.add(name)
+                            if (lower.contains("unityplayer") || lower == "global-metadata.dat" || lower == "libil2cpp.so") indicators.add("Unity / IL2CPP")
+                            if (lower.contains("libue4") || lower.contains("unreal")) indicators.add("Unreal Engine")
+                            if (lower.contains("godot")) indicators.add("Godot")
+                            if (lower.endsWith(".pak") || lower.endsWith(".obb")) indicators.add("Game asset archives")
+                            if (lower.endsWith(".iso") || lower.endsWith(".chd") || lower.endsWith(".cso") || lower.endsWith(".rvz") || lower.endsWith(".xex") || lower.endsWith(".cue")) indicators.add("Console / emulator image files")
+                            if (lower.contains("dolphin") || lower.contains("pcsx2") || lower.contains("ppsspp") || lower.contains("aethersx2") || lower.contains("winlator")) indicators.add("Possible emulator data")
+                        }
+                        if (files + folders >= 2500) break
+                    }
+                }
+                val result = buildString {
+                    append("SCAN COMPLETE (read-only)\n")
+                    append("Files: $files • Folders: $folders\n")
+                    append("Detected file types: ").append(extensions.take(18).joinToString(", ").ifBlank { "none" }).append("\n")
+                    append("Possible components: ").append(indicators.joinToString(", ").ifBlank { "not identified yet" }).append("\n")
+                    append("Sample files:\n").append(names.take(18).joinToString("\n"))
+                    if (files + folders >= 2500) append("\nScan capped at 2,500 entries for performance.")
+                    append("\n\nThis scanner only reads names and folders; it does not modify game data or hook into rendering.")
+                }
+                runOnUiThread { gameScanStatus.text = result }
+            } catch (e: Exception) {
+                runOnUiThread { gameScanStatus.text = "Scan failed: " + (e.message ?: "unknown error") }
+            }
+        }.start()
     }
 
     private fun addSlider(parent: LinearLayout, title: String, initial: Int): TextView {
