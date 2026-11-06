@@ -10,7 +10,8 @@ layout(set = 0, binding = 0) uniform sampler2D uCurrentColor;
 layout(set = 0, binding = 1) uniform sampler2D uMotionVectors;
 layout(set = 0, binding = 2) uniform sampler2D uLinearDepth;
 layout(set = 0, binding = 3) uniform sampler2D uHistoryColor;
-layout(set = 0, binding = 4, rgba16f) uniform writeonly image2D uOutput;
+layout(set = 0, binding = 4) uniform sampler2D uHistoryDepth;
+layout(set = 0, binding = 5, rgba16f) uniform writeonly image2D uOutput;
 
 layout(push_constant) uniform Params {
     ivec2 outputSize;
@@ -54,16 +55,15 @@ void main() {
         vec2 velocity = texture(uMotionVectors, outUV).xy;
         vec2 previousUV = outUV - velocity;
         float depth = texture(uLinearDepth, outUV).r;
-        float previousDepth = texture(uLinearDepth, previousUV).r;
+        float previousDepth = texture(uHistoryDepth, previousUV).r;
         float depthAgreement = 1.0 - smoothstep(0.002, 0.03, abs(depth - previousDepth));
 
         vec3 history = texture(uHistoryColor, previousUV).rgb;
         history = clamp(history, lo, hi);
 
-        float inside = float(
-            previousUV.x >= 0.0 && previousUV.x <= 1.0 &&
-            previousUV.y >= 0.0 && previousUV.y <= 1.0
-        );
+        bool insideBounds = previousUV.x >= 0.0 && previousUV.x <= 1.0 &&
+                            previousUV.y >= 0.0 && previousUV.y <= 1.0;
+        float inside = insideBounds ? 1.0 : 0.0;
         float weight = clamp(pc.historyWeight, 0.0, 0.95) *
                        depthAgreement * inside;
         reconstructed = mix(current, history, weight);
