@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
         ))
         page.addView(section("ملاحظة تقنية"))
         page.addView(text(
-            "هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد. أسماء المكتبات تعطي مؤشرات ولا تثبت وحدها واجهة الرسم المستخدمة.",
+            "يفحص هذا الإصدار أيضاً سلاسل ورموزاً معروفة داخل المكتبات الأصلية (حتى 32 MB لكل مكتبة). هذه مؤشرات تقنية وليست إثباتاً نهائياً لواجهة الرسم. هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد.",
             12f, Color.rgb(255, 195, 110), false
         ))
         setContentView(scroll)
@@ -88,7 +88,9 @@ class MainActivity : ComponentActivity() {
                             appendLine("عدد المكتبات الأصلية: " + result.nativeLibraries)
                             appendLine("أسماء المكتبات الأصلية:")
                             result.nativeLibraryNames.forEach { appendLine(" • " + it) }
-                            appendLine("مؤشرات الرسوميات: " + result.graphicsLibraries.joinToString().ifBlank { "غير محسومة من أسماء الملفات" })
+                            appendLine("مؤشرات الرسوميات من أسماء الملفات: " + result.graphicsLibraries.joinToString().ifBlank { "غير محسومة" })
+                            appendLine("رموز رسومية داخل المكتبات الأصلية: " + result.nativeGraphicsHints.joinToString().ifBlank { "لم نعثر على رموز معروفة ضمن الجزء المفحوص" })
+                            appendLine("عدد ملفات assets الفريدة: " + result.assetCount)
                             appendLine("ملفات Unity: " + if (result.hasUnityAssets) "موجودة" else "غير مكتشفة")
                             appendLine("ملفات Unreal PAK: " + if (result.hasUnrealAssets) "موجودة" else "غير مكتشفة")
                             appendLine("عينات من ملفات الأصول:")
