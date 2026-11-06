@@ -34,17 +34,17 @@ class MainActivity : ComponentActivity() {
         status = text("لم يتم فحص اللعبة بعد. اختر تطبيق اللعبة أو مشغّلها المثبت.", 14f, Color.rgb(0, 220, 255), false)
         page.addView(status)
         page.addView(section("نتيجة التحليل"))
-        details = text("ستظهر هنا معلومات الحزمة، إصدار التطبيق، المحرك، معماريات المعالج والمكتبات الرسومية التي عثرنا عليها داخل APK.", 13f, Color.WHITE, false)
+        details = text("ستظهر هنا معلومات الحزمة، المحرك، المكتبات الأصلية وأسماء ملفات الأصول.", 13f, Color.WHITE, false)
         details.gravity = Gravity.START
         page.addView(details)
         page.addView(section("هدف هذا الإصدار"))
         page.addView(text(
-            "1) تحديد نسخة Tomb Raider المثبتة.\n2) فحص APK الأساسي وملفات Split APK دون طلب Android/data أو OBB.\n3) معرفة محرك اللعبة ومكتبات العرض المتاحة.\n4) استخدام نتيجة الفحص لتطوير ربط رسومي حقيقي خاص بهذه اللعبة.",
+            "1) تحديد نسخة Tomb Raider المثبتة.\n2) فحص APK الأساسي وملفات Split APK دون طلب Android/data أو OBB.\n3) استخراج أسماء المكتبات الأصلية وبصمات ملفات الأصول.\n4) استخدام النتائج لتحديد طريقة الربط الرسومي المناسبة للعبة.",
             13f, Color.LTGRAY, false
         ))
         page.addView(section("ملاحظة تقنية"))
         page.addView(text(
-            "هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد. فحص APK أو حفظ إعدادات لا يغيّر إطارات اللعبة. سنعلن عن التحسين داخل اللعب فقط بعد بناء واختبار ربط يعمل فعلياً.",
+            "هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد. أسماء المكتبات تعطي مؤشرات ولا تثبت وحدها واجهة الرسم المستخدمة.",
             12f, Color.rgb(255, 195, 110), false
         ))
         setContentView(scroll)
@@ -83,14 +83,18 @@ class MainActivity : ComponentActivity() {
                             appendLine("الإصدار: " + version)
                             appendLine("عدد ملفات APK: " + apkFiles.size)
                             appendLine("الحجم الإجمالي: " + (totalSize / (1024 * 1024)) + " MB")
-                            appendLine("المحرك المكتشف: " + result.engine)
+                            appendLine("المحرك/البصمة: " + result.engine)
                             appendLine("معماريات CPU: " + result.abis.joinToString().ifBlank { "غير محددة" })
-                            appendLine("المكتبات الأصلية: " + result.nativeLibraries)
-                            appendLine("مكتبات الرسوميات: " + result.graphicsLibraries.joinToString().ifBlank { "لم يتم التعرف عليها داخل APK" })
+                            appendLine("عدد المكتبات الأصلية: " + result.nativeLibraries)
+                            appendLine("أسماء المكتبات الأصلية:")
+                            result.nativeLibraryNames.forEach { appendLine(" • " + it) }
+                            appendLine("مؤشرات الرسوميات: " + result.graphicsLibraries.joinToString().ifBlank { "غير محسومة من أسماء الملفات" })
                             appendLine("ملفات Unity: " + if (result.hasUnityAssets) "موجودة" else "غير مكتشفة")
                             appendLine("ملفات Unreal PAK: " + if (result.hasUnrealAssets) "موجودة" else "غير مكتشفة")
+                            appendLine("عينات من ملفات الأصول:")
+                            result.assetSamples.forEach { appendLine(" • " + it) }
                             appendLine()
-                            append(if (isTombRaider) "التعرف على اللعبة: الاسم يطابق Tomb Raider." else "التعرف على اللعبة: الاسم لا يؤكد أنها Tomb Raider؛ قد يكون هذا مشغّل اللعبة. راجع نتيجة الفحص.")
+                            append(if (isTombRaider) "التعرف على اللعبة: الاسم يطابق Tomb Raider." else "التعرف على اللعبة: الاسم لا يؤكد أنها Tomb Raider؛ تحقق من التطبيق المحدد.")
                         }
                         runOnUiThread {
                             details.text = report
