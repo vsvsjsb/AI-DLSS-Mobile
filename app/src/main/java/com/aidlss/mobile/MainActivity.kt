@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
         ))
         page.addView(section("ملاحظة تقنية"))
         page.addView(text(
-            "يفحص هذا الإصدار أيضاً سلاسل ورموزاً معروفة داخل المكتبات الأصلية (حتى 32 MB لكل مكتبة). هذه مؤشرات تقنية وليست إثباتاً نهائياً لواجهة الرسم. هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد.",
+            "يفحص هذا الإصدار كل مكتبة أصلية على حدة حتى 64 MB، ويعرض مؤشرات Vulkan وOpenGL ES واعتماديات ELF من DT_NEEDED. وجود رمز أو اعتماد لا يثبت وحده أن اللعبة تستخدم واجهة الرسم أثناء اللعب؛ يلزم رصد وقت التشغيل لإثبات المسار النشط. هذا إصدار تشخيص وتجهيز للتكامل، وليس محرك تحسين داخل اللعبة بعد.",
             12f, Color.rgb(255, 195, 110), false
         ))
         setContentView(scroll)
@@ -89,7 +89,18 @@ class MainActivity : ComponentActivity() {
                             appendLine("أسماء المكتبات الأصلية:")
                             result.nativeLibraryNames.forEach { appendLine(" • " + it) }
                             appendLine("مؤشرات الرسوميات من أسماء الملفات: " + result.graphicsLibraries.joinToString().ifBlank { "غير محسومة" })
-                            appendLine("رموز رسومية داخل المكتبات الأصلية: " + result.nativeGraphicsHints.joinToString().ifBlank { "لم نعثر على رموز معروفة ضمن الجزء المفحوص" })
+                            appendLine("الرموز المجمعة داخل المكتبات: " + result.nativeGraphicsHints.joinToString().ifBlank { "لا توجد" })
+                            appendLine()
+                            appendLine("تحليل كل مكتبة أصلية (رموز + اعتماديات ELF):")
+                            result.libraryAnalyses.forEach { lib ->
+                                appendLine("[" + lib.name + "]")
+                                appendLine("الحجم: " + if (lib.sizeBytes >= 0) (lib.sizeBytes / 1024) + " KB" else "غير معروف")
+                                appendLine("ELF64: " + if (lib.elf64) "نعم" else "لا/غير معروف")
+                                appendLine("Vulkan: " + lib.vulkanMarkers.joinToString().ifBlank { "لا توجد مؤشرات معروفة" })
+                                appendLine("OpenGL ES/EGL: " + lib.openGlMarkers.joinToString().ifBlank { "لا توجد مؤشرات معروفة" })
+                                appendLine("DT_NEEDED: " + lib.dependencies.joinToString().ifBlank { "غير مقروءة أو غير موجودة" })
+                                appendLine()
+                            }
                             appendLine("عدد ملفات assets الفريدة: " + result.assetCount)
                             appendLine("ملفات Unity: " + if (result.hasUnityAssets) "موجودة" else "غير مكتشفة")
                             appendLine("ملفات Unreal PAK: " + if (result.hasUnrealAssets) "موجودة" else "غير مكتشفة")
