@@ -10,7 +10,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="AI DLSS Mobile"
+        android:label="DLSS5 Mobile - Tomb Raider"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false">
 
