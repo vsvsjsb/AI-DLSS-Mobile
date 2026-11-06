@@ -252,10 +252,11 @@ class MainActivity : ComponentActivity() {
                 val appName = appInfo.loadLabel(packageManager).toString()
                 val packageNameFromApk = packageInfo.packageName
                 val version = packageInfo.versionName ?: "غير محدد"
+                val apkInfo = ApkInspector.inspect(apkFile)
                 val profile = GameProfiles.match(appName, packageNameFromApk)
 
                 runOnUiThread {
-                    gameScanStatus.text = "تمت قراءة APK بنجاح\\nاللعبة: $appName\\nالحزمة: $packageNameFromApk\\nالإصدار: $version\\nلم نفك أو نطلب أي ملفات خارج APK."
+                    gameScanStatus.text = "تمت قراءة APK بنجاح\\nاللعبة: $appName\\nالحزمة: $packageNameFromApk\\nالإصدار: $version\\nالمحرك: ${apkInfo.engine}\\nمعماريات CPU: ${apkInfo.abis.joinToString().ifBlank { "غير محددة" }}\\nالمكتبات الأصلية: ${apkInfo.nativeLibraries}\\nبيانات Unity: ${if (apkInfo.hasUnityAssets) "موجودة" else "غير مكتشفة"}\\nحزم Unreal: ${if (apkInfo.hasUnrealAssets) "موجودة" else "غير مكتشفة"}\\nتم الفحص من APK فقط."
                     if (profile != null) applyGameProfile(profile)
                     else {
                         profileStatus.text = "تم التعرف على $appName؛ لا يوجد ملف مخصص لها بعد."
