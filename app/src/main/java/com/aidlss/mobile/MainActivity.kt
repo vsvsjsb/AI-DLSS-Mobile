@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var preview: ImageView
     private lateinit var status: TextView
     private lateinit var gameScanStatus: TextView
+    private lateinit var profileStatus: TextView
     private var originalBitmap: Bitmap? = null
     private val prefs by lazy { getSharedPreferences("graphics_settings", MODE_PRIVATE) }
     private val sliders = linkedMapOf<String, TextView>()
@@ -66,6 +67,9 @@ class MainActivity : ComponentActivity() {
         page.addView(button("فحص مجلد لعبة أو محاكي") { gameFolderPicker.launch(null) })
         gameScanStatus = text("اختر لعبة أو افحص مجلدها للتعرّف على الملفات.", 13f, Color.rgb(0, 220, 255), false)
         page.addView(gameScanStatus)
+        page.addView(button("اختيار ملف رسومي مخصص للعبة") { chooseGameProfile() })
+        profileStatus = text("ملف اللعبة: لم يتم الاختيار بعد", 13f, Color.rgb(0, 220, 255), false)
+        page.addView(profileStatus)
 
         page.addView(section("تحسين الصورة والفلاتر"))
         page.addView(button("اختيار صورة للتجربة") { imagePicker.launch("image/*") })
@@ -154,12 +158,35 @@ class MainActivity : ComponentActivity() {
                 val info = apps[which].activityInfo
                 val launch = packageManager.getLaunchIntentForPackage(info.packageName)
                 if (launch != null) {
+                    val profile = GameProfiles.match(labels[which], info.packageName)
+                    if (profile != null) applyGameProfile(profile)
+                    else profileStatus.text = "لم يتم العثور على ملف مخصص لهذه اللعبة؛ يمكنك اختيار ملف يدوياً."
                     status.text = "تم اختيار: ${labels[which]} — تشغيل التطبيق"
                     startActivity(launch)
                 } else status.text = "تعذر تشغيل هذا التطبيق."
             }
             .setNegativeButton("إلغاء", null)
             .show()
+    }
+
+    private fun chooseGameProfile() {
+        val profiles = GameProfiles.all
+        AlertDialog.Builder(this)
+            .setTitle("اختر اللعبة")
+            .setItems(profiles.map { it.name }.toTypedArray()) { _, which -> applyGameProfile(profiles[which]) }
+            .setNegativeButton("إلغاء", null)
+            .show()
+    }
+
+    private fun applyGameProfile(profile: GameProfile) {
+        profile.settings.forEach { (key, value) ->
+            values[key] = value
+            prefs.edit().putInt(key, value).apply()
+            sliders[key]?.text = "$key: $value%"
+        }
+        prefs.edit().putString("selected_game_profile", profile.id).apply()
+        profileStatus.text = "الملف المحدد: ${profile.name}\\nتم حفظ إعداداته داخل التطبيق. تأثيرها على رسوم اللعبة نفسها يحتاج ربطاً بمحرك العرض أو دعماً من اللعبة/المحاكي."
+        status.text = "تم تحميل ملف ${profile.name} وحفظ إعداداته."
     }
 
     private fun chooseOption(title: String, onChoose: (String) -> Unit) {
@@ -233,8 +260,13 @@ class MainActivity : ComponentActivity() {
                         if (files + folders >= 2500) break
                     }
                 }
-                val report = "اكتمل الفحص\nالملفات: $files • المجلدات: $folders\nالامتدادات: ${extensions.take(18).joinToString(", ")}\nمؤشرات: ${indicators.joinToString(", ").ifBlank { "لم يتم التحديد" }}\n\nالفحص للقراءة فقط."
-                runOnUiThread { gameScanStatus.text = report }
+                val detectedProfile = GameProfiles.match(root.name, uri.lastPathSegment)
+                val profileLine = detectedProfile?.let { "\\nملف اللعبة المقترح: ${it.name}" } ?: ""
+                val report = "اكتمل الفحص\\nالملفات: $files • المجلدات: $folders\\nالامتدادات: ${extensions.take(18).joinToString(", ")}\\nمؤشرات: ${indicators.joinToString(", ").ifBlank { "لم يتم التحديد" }}$profileLine\\n\\nالفحص للقراءة فقط."
+                runOnUiThread {
+                    gameScanStatus.text = report
+                    if (detectedProfile != null) applyGameProfile(detectedProfile)
+                }
             } catch (e: Exception) {
                 runOnUiThread { gameScanStatus.text = "فشل الفحص: ${e.message ?: "خطأ غير معروف"}" }
             }
