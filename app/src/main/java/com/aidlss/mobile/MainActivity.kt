@@ -233,21 +233,22 @@ class MainActivity : ComponentActivity() {
         Thread {
             var tempApk: File? = null
             try {
-                tempApk = File(cacheDir, "selected-game-${System.currentTimeMillis()}.apk")
+                val apkFile = File(cacheDir, "selected-game-${System.currentTimeMillis()}.apk")
+                tempApk = apkFile
                 contentResolver.openInputStream(uri)?.use { input ->
-                    tempApk.outputStream().use { output -> input.copyTo(output) }
+                    apkFile.outputStream().use { output -> input.copyTo(output) }
                 } ?: throw IllegalStateException("تعذر قراءة ملف APK")
 
                 @Suppress("DEPRECATION")
                 val packageInfo = packageManager.getPackageArchiveInfo(
-                    tempApk.absolutePath,
+                    apkFile.absolutePath,
                     android.content.pm.PackageManager.GET_ACTIVITIES
                 ) ?: throw IllegalArgumentException("الملف ليس APK صالحاً أو لا يحتوي معلومات حزمة قابلة للقراءة")
 
                 val appInfo = packageInfo.applicationInfo
                     ?: throw IllegalArgumentException("تعذر قراءة معلومات التطبيق من APK")
-                appInfo.sourceDir = tempApk.absolutePath
-                appInfo.publicSourceDir = tempApk.absolutePath
+                appInfo.sourceDir = apkFile.absolutePath
+                appInfo.publicSourceDir = apkFile.absolutePath
                 val appName = appInfo.loadLabel(packageManager).toString()
                 val packageNameFromApk = packageInfo.packageName
                 val version = packageInfo.versionName ?: "غير محدد"
