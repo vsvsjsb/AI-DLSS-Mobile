@@ -19,8 +19,8 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.documentfile.provider.DocumentFile
 import kotlin.math.roundToInt
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     private lateinit var preview: ImageView
@@ -40,11 +40,8 @@ class MainActivity : ComponentActivity() {
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) loadImage(uri)
     }
-    private val gameFolderPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
-        if (uri != null) {
-            try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Exception) {}
-            scanGameFolder(uri)
-        }
+    private val gameApkPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) inspectGameApk(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,9 +60,11 @@ class MainActivity : ComponentActivity() {
         page.addView(text("هاتفك: OnePlus 10T • Adreno 730", 13f, Color.LTGRAY, false))
 
         page.addView(section("الألعاب والتطبيقات"))
-        page.addView(button("اختيار لعبة أو تطبيق مثبت") { showInstalledGames() })
-        page.addView(button("فحص مجلد لعبة أو محاكي") { gameFolderPicker.launch(null) })
-        gameScanStatus = text("اختر لعبة أو افحص مجلدها للتعرّف على الملفات.", 13f, Color.rgb(0, 220, 255), false)
+        page.addView(button("اختيار لعبة مثبتة") { showInstalledGames() })
+        page.addView(button("اختيار ملف APK للعبة") {
+            gameApkPicker.launch(arrayOf("application/vnd.android.package-archive", "application/octet-stream"))
+        })
+        gameScanStatus = text("اختر APK اللعبة فقط؛ لا حاجة إلى مجلدات أو ملفات Data أو OBB.", 13f, Color.rgb(0, 220, 255), false)
         page.addView(gameScanStatus)
         page.addView(button("اختيار ملف رسومي مخصص للعبة") { chooseGameProfile() })
         profileStatus = text("ملف اللعبة: لم يتم الاختيار بعد", 13f, Color.rgb(0, 220, 255), false)
@@ -138,7 +137,7 @@ class MainActivity : ComponentActivity() {
         })
         status = text("الإعدادات تحفظ على الهاتف. اختر صورة لتجربة الفلاتر.", 13f, Color.rgb(0, 220, 255), false)
         page.addView(status)
-        page.addView(text("تنبيه: تعديل صورة المعاينة يعمل داخل التطبيق فقط. لا يوجد حتى الآن حقن رسومي عام في ألعاب أندرويد.", 12f, Color.LTGRAY, false))
+        page.addView(text("تنبيه: قراءة APK واختيار ملف اللعبة لا يفعّلان وحدهما تحسين الرسوم داخل اللعبة. ربط محرك العرض ما زال مطلوباً.", 12f, Color.LTGRAY, false))
         setContentView(scroll)
     }
 
@@ -185,7 +184,7 @@ class MainActivity : ComponentActivity() {
             sliders[key]?.text = "$key: $value%"
         }
         prefs.edit().putString("selected_game_profile", profile.id).apply()
-        profileStatus.text = "الملف المحدد: ${profile.name}\\nتم حفظ إعداداته داخل التطبيق. تأثيرها على رسوم اللعبة نفسها يحتاج ربطاً بمحرك العرض أو دعماً من اللعبة/المحاكي."
+        profileStatus.text = "الملف المحدد: ${profile.name}\\nتم حفظ الإعدادات. يلزم ربط محرك العرض لتطبيقها داخل اللعبة."
         status.text = "تم تحميل ملف ${profile.name} وحفظ إعداداته."
     }
 
@@ -229,46 +228,43 @@ class MainActivity : ComponentActivity() {
         applyEnhancement()
     }
 
-    private fun scanGameFolder(uri: Uri) {
-        gameScanStatus.text = "جارٍ فحص المجلد…"
+    private fun inspectGameApk(uri: Uri) {
+        gameScanStatus.text = "جارٍ قراءة APK اللعبة فقط…"
         Thread {
+            var tempApk: File? = null
             try {
-                val root = DocumentFile.fromTreeUri(this, uri) ?: throw IllegalStateException("تعذر فتح المجلد")
-                val queue = ArrayDeque<Pair<DocumentFile, Int>>()
-                queue.add(root to 0)
-                val extensions = linkedSetOf<String>()
-                val indicators = linkedSetOf<String>()
-                var files = 0
-                var folders = 0
-                while (queue.isNotEmpty() && files + folders < 2500) {
-                    val (dir, depth) = queue.removeFirst()
-                    if (depth > 6) continue
-                    for (child in try { dir.listFiles() } catch (_: Exception) { emptyArray() }) {
-                        val name = child.name ?: continue
-                        if (child.isDirectory) { folders++; if (depth < 6) queue.add(child to depth + 1) }
-                        else {
-                            files++
-                            val lower = name.lowercase()
-                            val ext = lower.substringAfterLast('.', "")
-                            if (ext.isNotBlank()) extensions.add(ext)
-                            if (lower.contains("unityplayer") || lower == "global-metadata.dat" || lower == "libil2cpp.so") indicators.add("Unity / IL2CPP")
-                            if (lower.contains("libue4") || lower.contains("unreal")) indicators.add("Unreal Engine")
-                            if (lower.contains("godot")) indicators.add("Godot")
-                            if (lower.endsWith(".pak") || lower.endsWith(".obb")) indicators.add("أرشيفات أصول اللعبة")
-                            if (listOf(".iso", ".chd", ".cso", ".rvz", ".xex", ".cue").any { lower.endsWith(it) }) indicators.add("ملفات ألعاب المحاكيات")
-                        }
-                        if (files + folders >= 2500) break
+                tempApk = File(cacheDir, "selected-game-${System.currentTimeMillis()}.apk")
+                contentResolver.openInputStream(uri)?.use { input ->
+                    tempApk.outputStream().use { output -> input.copyTo(output) }
+                } ?: throw IllegalStateException("تعذر قراءة ملف APK")
+
+                @Suppress("DEPRECATION")
+                val packageInfo = packageManager.getPackageArchiveInfo(
+                    tempApk.absolutePath,
+                    android.content.pm.PackageManager.GET_ACTIVITIES
+                ) ?: throw IllegalArgumentException("الملف ليس APK صالحاً أو لا يحتوي معلومات حزمة قابلة للقراءة")
+
+                val appInfo = packageInfo.applicationInfo
+                    ?: throw IllegalArgumentException("تعذر قراءة معلومات التطبيق من APK")
+                appInfo.sourceDir = tempApk.absolutePath
+                appInfo.publicSourceDir = tempApk.absolutePath
+                val appName = appInfo.loadLabel(packageManager).toString()
+                val packageNameFromApk = packageInfo.packageName
+                val version = packageInfo.versionName ?: "غير محدد"
+                val profile = GameProfiles.match(appName, packageNameFromApk)
+
+                runOnUiThread {
+                    gameScanStatus.text = "تمت قراءة APK بنجاح\\nاللعبة: $appName\\nالحزمة: $packageNameFromApk\\nالإصدار: $version\\nلم نفك أو نطلب أي ملفات خارج APK."
+                    if (profile != null) applyGameProfile(profile)
+                    else {
+                        profileStatus.text = "تم التعرف على $appName؛ لا يوجد ملف مخصص لها بعد."
+                        status.text = "تم تحليل APK وتحديد اسم اللعبة وحزمتها."
                     }
                 }
-                val detectedProfile = GameProfiles.match(root.name, uri.lastPathSegment)
-                val profileLine = detectedProfile?.let { "\\nملف اللعبة المقترح: ${it.name}" } ?: ""
-                val report = "اكتمل الفحص\\nالملفات: $files • المجلدات: $folders\\nالامتدادات: ${extensions.take(18).joinToString(", ")}\\nمؤشرات: ${indicators.joinToString(", ").ifBlank { "لم يتم التحديد" }}$profileLine\\n\\nالفحص للقراءة فقط."
-                runOnUiThread {
-                    gameScanStatus.text = report
-                    if (detectedProfile != null) applyGameProfile(detectedProfile)
-                }
             } catch (e: Exception) {
-                runOnUiThread { gameScanStatus.text = "فشل الفحص: ${e.message ?: "خطأ غير معروف"}" }
+                runOnUiThread { gameScanStatus.text = "تعذر تحليل APK: ${e.message ?: "خطأ غير معروف"}" }
+            } finally {
+                tempApk?.delete()
             }
         }.start()
     }
