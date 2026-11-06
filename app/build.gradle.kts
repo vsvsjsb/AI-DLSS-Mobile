@@ -43,7 +43,6 @@ android {
 }
 
 dependencies {
-    implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
 }
