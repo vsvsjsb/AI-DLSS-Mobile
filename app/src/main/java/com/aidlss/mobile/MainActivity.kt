@@ -18,10 +18,11 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlin.math.roundToInt
 
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private lateinit var preview: ImageView
     private lateinit var status: TextView
     private lateinit var sharpnessLabel: TextView
