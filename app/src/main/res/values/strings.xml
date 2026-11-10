@@ -36,7 +36,7 @@
     <string name="purpose_data">Structured data/resource file. Its schema and contents determine its exact purpose.</string>
     <string name="purpose_source">Source-code file.</string>
     <string name="purpose_library">Native shared library (.so), loaded by an application or game.</string>
-    <string name="purpose_game_data">Game data/archive file. Exact contents depend on the game's format.</string>
+    <string name="purpose_game_data">Game data or archive file. Exact contents depend on the game file format.</string>
     <string name="purpose_texture">Image/texture asset. DDS is commonly used for game textures.</string>
     <string name="purpose_audio">Audio asset.</string>
     <string name="purpose_video">Video asset.</string>
