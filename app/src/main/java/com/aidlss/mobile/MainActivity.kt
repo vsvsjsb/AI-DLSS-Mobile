@@ -117,10 +117,13 @@ class MainActivity : AppCompatActivity() {
                     val i = c.getColumnIndex(OpenableColumns.SIZE)
                     if (c.moveToFirst() && i >= 0 && !c.isNull(i)) c.getLong(i) else -1L
                 } ?: -1L
-                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytesLimited(512 * 1024) }
-                    ?: throw IllegalStateException(getString(R.string.cannot_open))
-                val result = if (name.endsWith(".apk", true)) analyzeApkBytes(name, bytes, size)
-                    else describeFile(name, contentResolver.getType(uri), size, bytes)
+                val result = if (name.endsWith(".apk", true)) {
+                    analyzeApkUri(name, uri, size)
+                } else {
+                    val bytes = contentResolver.openInputStream(uri)?.use { it.readBytesLimited(512 * 1024) }
+                        ?: throw IllegalStateException(getString(R.string.cannot_open))
+                    describeFile(name, contentResolver.getType(uri), size, bytes)
+                }
                 runOnUiThread { report.text = result }
             } catch (e: Exception) {
                 runOnUiThread { report.text = getString(R.string.read_error, e.localizedMessage ?: "") }
@@ -171,16 +174,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     @Suppress("DEPRECATION")
-    private fun analyzeApkBytes(name: String, bytes: ByteArray, size: Long): String {
+    private fun analyzeApkUri(name: String, uri: Uri, size: Long): String {
         val temp = File(cacheDir, "inspect-" + System.currentTimeMillis() + ".apk")
         return try {
-            temp.writeBytes(bytes)
+            contentResolver.openInputStream(uri)?.use { input ->
+                temp.outputStream().use { output -> input.copyTo(output) }
+            } ?: throw IllegalStateException(getString(R.string.cannot_open))
             val info = if (Build.VERSION.SDK_INT >= 33)
                 packageManager.getPackageArchiveInfo(temp.absolutePath, PackageManager.PackageInfoFlags.of(PackageManager.GET_PERMISSIONS.toLong() or PackageManager.GET_ACTIVITIES.toLong()))
             else packageManager.getPackageArchiveInfo(temp.absolutePath, PackageManager.GET_PERMISSIONS or PackageManager.GET_ACTIVITIES)
             buildString {
                 appendLine(getString(R.string.file_name, name))
-                appendLine(getString(R.string.file_size, if (size >= 0) formatSize(size) else getString(R.string.unknown)))
+                appendLine(getString(R.string.file_size, if (size >= 0) formatSize(size) else formatSize(temp.length())))
                 if (info != null) {
                     appendLine(getString(R.string.package_name, info.packageName))
                     appendLine(getString(R.string.version, info.versionName ?: getString(R.string.unknown)))
@@ -192,9 +197,22 @@ class MainActivity : AppCompatActivity() {
                 appendLine(zipSummary(temp))
                 appendLine()
                 appendLine(getString(R.string.file_purpose_apk))
-                appendLine(getString(R.string.sha256, sha256(bytes)))
+                appendLine(getString(R.string.sha256, sha256File(temp)))
             }
         } finally { temp.delete() }
+    }
+
+    private fun sha256File(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count <= 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun zipSummary(file: File): String = try {
