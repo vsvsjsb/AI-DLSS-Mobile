@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">مستكشف الملفات برو</string>
+    <string name="home_subtitle">قارئ ومحلل ملفات بنظام أندرويد</string>
+    <string name="open_file">فتح ملف</string>
+    <string name="settings">الإعدادات</string>
+    <string name="preview_title">معلومات الملف ومعاينته</string>
+    <string name="no_file">لم تختر أي ملف بعد.</string>
+    <string name="language_title">لغة التطبيق</string>
+    <string name="language_system">اتباع لغة الهاتف</string>
+    <string name="language_arabic">العربية</string>
+    <string name="language_english">الإنجليزية</string>
+    <string name="cancel">إلغاء</string>
+    <string name="reading_file">جارٍ قراءة الملف…</string>
+    <string name="cannot_open">تعذر فتح هذا الملف</string>
+    <string name="binary_file">ملف ثنائي. لا تتوفر معاينة نصية له.</string>
+    <string name="empty_file">ملف فارغ</string>
+    <string name="file_name">الاسم: %1$s</string>
+    <string name="file_size">الحجم: %1$s</string>
+    <string name="file_type">نوع المحتوى المكتشف: %1$s</string>
+    <string name="unknown">غير معروف</string>
+    <string name="binary">ثنائي</string>
+    <string name="text_file">نصي / UTF-8</string>
+    <string name="sha256">بصمة SHA-256: %1$s</string>
+    <string name="content_label">معاينة المحتوى:</string>
+    <string name="preview_limited">المعاينة محدودة بأول 512 كيلوبايت.</string>
+    <string name="read_error">تعذرت قراءة الملف: %1$s</string>
+</resources>
