@@ -64,6 +64,7 @@ class MainActivity : AppCompatActivity() {
         addButton(getString(R.string.settings)) { showSettings() }
         addText(getString(R.string.folder_contents), 18f, true)
         report = addText(getString(R.string.choose_folder), 13f, false)
+        report.setTextIsSelectable(true)
         setContentView(root)
     }
 
