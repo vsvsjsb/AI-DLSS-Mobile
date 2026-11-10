@@ -4,19 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.aidlss.mobile"
+    namespace = "com.fileexplorer.pro"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.aidlss.mobile"
+        applicationId = "com.fileexplorer.pro"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "5.1"
-
-        ndk {
-            abiFilters += "arm64-v8a"
-        }
+        versionCode = 1
+        versionName = "1.0.0"
     }
 
     buildTypes {
@@ -30,18 +26,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.9.3")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
+    implementation("androidx.core:core-ktx:1.15.0")
 }
