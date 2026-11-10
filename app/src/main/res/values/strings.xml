@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">File Explorer Pro</string>
+    <string name="home_subtitle">Native file reader and analyzer</string>
+    <string name="open_file">Open a file</string>
+    <string name="settings">Settings</string>
+    <string name="preview_title">File information and preview</string>
+    <string name="no_file">No file selected yet.</string>
+    <string name="language_title">App language</string>
+    <string name="language_system">Follow system language</string>
+    <string name="language_arabic">العربية</string>
+    <string name="language_english">English</string>
+    <string name="cancel">Cancel</string>
+    <string name="reading_file">Reading file…</string>
+    <string name="cannot_open">Unable to open this file</string>
+    <string name="binary_file">Binary file. Text preview is not available.</string>
+    <string name="empty_file">Empty file</string>
+    <string name="file_name">Name: %1$s</string>
+    <string name="file_size">Size: %1$s</string>
+    <string name="file_type">Detected content: %1$s</string>
+    <string name="unknown">Unknown</string>
+    <string name="binary">Binary</string>
+    <string name="text_file">Text / UTF-8</string>
+    <string name="sha256">SHA-256: %1$s</string>
+    <string name="content_label">Content preview:</string>
+    <string name="preview_limited">Preview limited to the first 512 KB.</string>
+    <string name="read_error">Could not read file: %1$s</string>
+</resources>
