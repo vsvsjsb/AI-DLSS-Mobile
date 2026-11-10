@@ -87,8 +87,18 @@ class MainActivity : AppCompatActivity() {
                     val index = cursor.getColumnIndex(OpenableColumns.SIZE)
                     if (cursor.moveToFirst() && index >= 0 && !cursor.isNull(index)) cursor.getLong(index) else -1L
                 } ?: -1L
-                val bytes = contentResolver.openInputStream(uri)?.use { it.readNBytes(512 * 1024) }
-                    ?: throw IllegalStateException(getString(R.string.cannot_open))
+                val bytes = contentResolver.openInputStream(uri)?.use { input ->
+                    val output = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    var remaining = 512 * 1024
+                    while (remaining > 0) {
+                        val count = input.read(buffer, 0, minOf(buffer.size, remaining))
+                        if (count <= 0) break
+                        output.write(buffer, 0, count)
+                        remaining -= count
+                    }
+                    output.toByteArray()
+                } ?: throw IllegalStateException(getString(R.string.cannot_open))
                 val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
                 val binary = bytes.any { it == 0.toByte() }
                 val preview = if (binary) getString(R.string.binary_file)
