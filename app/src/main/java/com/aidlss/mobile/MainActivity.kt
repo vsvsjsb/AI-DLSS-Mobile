@@ -1,4 +1,4 @@
-package com.aidlss.mobile
+package com.fileexplorer.pro
 
 import android.net.Uri
 import android.os.Bundle
